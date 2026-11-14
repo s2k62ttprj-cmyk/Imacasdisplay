@@ -139,8 +139,8 @@ export const LESSONS = [
     blurb: 'Step 3 — two layers done',
     pages: [
       {
-        heading: 'Flip it over',
-        body: `From now on white stays on the bottom. Find an edge in the top layer <b>without yellow</b>. Turn <b>U</b> until its front colour matches the centre below — it makes an upside-down “T”.`,
+        heading: 'Find a middle edge',
+        body: `Keep white on the bottom. Find an edge in the top layer <b>without yellow</b>. Turn <b>U</b> until its front colour matches the centre below — it makes an upside-down “T”.`,
         action: { type: 'goal', stage: 'middle' },
       },
       {

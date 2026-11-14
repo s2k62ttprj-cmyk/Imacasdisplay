@@ -217,7 +217,7 @@ function LessonScreen(lessonIdx) {
     view.idleSpin = false;
     view.turnEnabled = false;
     view.speed = 1;
-    view.setView(0, a.topView ? { pitch: 52 } : {});
+    view.setView(0, a.topView ? { pitch: 52 } : lesson.stage === 'cross' && a.type !== 'goal' ? { pitch: -26 } : {});
 
     const body = h('div', { class: 'lesson-body' },
       h('div', { class: 'kicker' }, `Lesson ${lessonIdx + 1} · ${page + 1}/${lesson.pages.length}`),
@@ -433,32 +433,31 @@ function GuideScreen(startState) {
   function runStep(after) {
     const st = steps[idx];
     if (!st || busyStep) return;
-    busyStep = true;
+    busyStep = true; // stays set until the index has advanced (cleared in nextStep)
     const my = ++token;
     st.moves.forEach((m, i) => view.enqueue(m, { meta: { g: my, i } }));
-    const onStart = (_t, meta) => { if (meta?.g === my) S.chips?.setActive(meta.i); };
-    const onIdle = () => {
+    view.on('movestart', (_t, meta) => { if (meta?.g === my) S.chips?.setActive(meta.i); });
+    view.on('idle', () => {
       if (my !== token) return;
-      busyStep = false;
       S.chips?.setActive(st.moves.length);
-      after?.();
-    };
-    view.on('movestart', onStart);
-    view.on('idle', onIdle);
+      after?.(my);
+    });
   }
 
   function nextStep() {
-    if (busyStep) return;
-    runStep(() => {
+    if (busyStep || idx >= steps.length) return;
+    runStep((my) => {
       setTimeout(() => {
+        if (my !== token) return;
         idx++;
+        busyStep = false;
         if (idx >= steps.length) {
           playing = false;
           haptic('success');
           confetti();
         }
         renderStep();
-        if (playing) setTimeout(() => playing && nextStep(), 450);
+        if (playing) setTimeout(() => { if (playing && my === token) nextStep(); }, 450);
       }, 350);
     });
   }
@@ -466,15 +465,21 @@ function GuideScreen(startState) {
   function prevStep() {
     if (busyStep || idx === 0) return;
     playing = false;
+    busyStep = true;
     idx--;
     view.speed = 2.2;
     view.enqueue(invertAlg(steps[idx].moves));
     const my = ++token;
-    view.on('idle', () => { if (my === token) { view.speed = S.speed; } });
+    view.on('idle', () => {
+      if (my !== token) return;
+      view.speed = S.speed;
+      busyStep = false;
+    });
     renderStep();
   }
 
   function togglePlay() {
+    if (idx >= steps.length) return;
     playing = !playing;
     S.playBtn.replaceChildren(icon(playing ? 'pause' : 'play'));
     if (playing) nextStep();

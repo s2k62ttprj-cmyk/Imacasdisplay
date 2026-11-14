@@ -69,6 +69,9 @@ jobs:
           echo "== Binary architecture / platform =="
           lipo -info Payload/CubeTutor.app/CubeTutor
           vtool -show-build Payload/CubeTutor.app/CubeTutor
+          echo "== App bundle files =="
+          ls -la Payload/CubeTutor.app
+          plutil -p Payload/CubeTutor.app/Info.plist | grep -A8 CFBundleIcons || echo "WARNING: no CFBundleIcons"
           echo "== Web bundle present =="
           ls -la Payload/CubeTutor.app/web
           ls -la dist
@@ -79,3 +82,30 @@ jobs:
           name: CubeTutor-unsigned-ipa
           path: dist/CubeTutor-unsigned.ipa
           if-no-files-found: error
+
+      - name: Simulator smoke test (renders the app in real WebKit)
+        continue-on-error: true
+        run: |
+          set -x
+          xcodebuild build \
+            -project CubeTutor.xcodeproj -scheme CubeTutor -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build-sim CODE_SIGN_IDENTITY=- CODE_SIGNING_REQUIRED=NO | tail -n 5
+          DEV=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; print(next(x['udid'] for k,v in sorted(d.items(), reverse=True) if 'iOS' in k for x in v if x['name'].startswith('iPhone')))")
+          xcrun simctl boot "$DEV" || true
+          xcrun simctl bootstatus "$DEV" -b
+          xcrun simctl install "$DEV" build-sim/Build/Products/Debug-iphonesimulator/CubeTutor.app
+          xcrun simctl launch "$DEV" com.example.cubetutor
+          sleep 25
+          mkdir -p shots
+          xcrun simctl io "$DEV" screenshot shots/simulator-home.png
+          ls -la shots
+
+      - name: Upload simulator screenshot
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-screenshot
+          path: shots/
+          if-no-files-found: warn

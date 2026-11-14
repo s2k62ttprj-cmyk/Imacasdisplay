@@ -64,6 +64,11 @@ struct CubeWebView: UIViewRepresentable {
             }
         }
 
+        // iOS may kill the web content process in the background; reload instead of showing a blank screen.
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+            webView.reload()
+        }
+
         // Keep navigation inside the bundle.
         func webView(_ webView: WKWebView,
                      decidePolicyFor navigationAction: WKNavigationAction,
