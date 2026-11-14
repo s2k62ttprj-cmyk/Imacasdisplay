@@ -1,0 +1,70 @@
+name: Build unsigned IPA
+
+on:
+  push:
+    branches:
+      - "claude/**"
+      - main
+
+concurrency:
+  group: build-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain info
+        run: |
+          xcodebuild -version
+          sw_vers
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build for device (unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project CubeTutor.xcodeproj \
+            -scheme CubeTutor \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            | tail -n 80
+
+      - name: Package IPA
+        run: |
+          APP="build/Build/Products/Release-iphoneos/CubeTutor.app"
+          test -d "$APP"
+          rm -rf Payload dist && mkdir -p Payload dist
+          cp -R "$APP" Payload/
+          zip -qry dist/CubeTutor-unsigned.ipa Payload
+          echo "== IPA contents (top) =="
+          unzip -l dist/CubeTutor-unsigned.ipa | head -n 40
+          echo "== Info.plist lint =="
+          plutil -lint Payload/CubeTutor.app/Info.plist
+          plutil -p Payload/CubeTutor.app/Info.plist
+          echo "== Binary architecture / platform =="
+          lipo -info Payload/CubeTutor.app/CubeTutor
+          vtool -show-build Payload/CubeTutor.app/CubeTutor
+          echo "== Web bundle present =="
+          ls -la Payload/CubeTutor.app/web
+          ls -la dist
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CubeTutor-unsigned-ipa
+          path: dist/CubeTutor-unsigned.ipa
+          if-no-files-found: error

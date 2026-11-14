@@ -1,0 +1,6 @@
+CubeTutor.xcodeproj/
+build/
+Payload/
+dist/
+node_modules/
+.DS_Store
