@@ -1,0 +1,15 @@
+{
+  "name": "cubetutor-web",
+  "version": "1.0.0",
+  "description": "Cube Tutor web app bundled into the iOS shell",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "build": "node build.mjs"
+  },
+  "license": "ISC",
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "three": "^0.170.0"
+  },
+  "type": "module"
+}
